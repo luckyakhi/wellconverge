@@ -1,0 +1,35 @@
+# Java / Gradle
+.gradle/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+*.log
+
+# Node / React
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+
+# Env / secrets
+.env
+*.local
+
+# Claude local (personal) settings — share .claude/settings.json only
+.claude/settings.local.json
+.claude/*.tmp.*
+
+# Terraform (later)
+**/.terraform/
+*.tfstate
+*.tfstate.*
