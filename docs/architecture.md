@@ -80,6 +80,23 @@ Every sub-feature follows the same eight steps. **Do them in order.**
 | Later        | Local Kubernetes (kind/minikube), kustomize/helm         | planned  |
 | Later        | AWS Fargate/EKS provisioned with Terraform               | planned  |
 
+### Infrastructure is declared, never clicked (must always hold)
+
+**Every AWS resource is created and changed through Terraform in `infra/`.** No console clicking, no
+`aws` CLI `create-*`, no SDK/boto3 provisioning — those leave infrastructure that nobody can review,
+reproduce, or destroy. The same reasoning that puts the schema under Flyway rather than `ddl-auto`
+applies to cloud resources: the declared state is the source of truth, and drift is a bug.
+
+- **Terraform provisions; application and tooling code consumes.** Buckets, catalog databases, IAM
+  roles, queues and clusters are Terraform's job. Code may read from and write *data into* those
+  resources; it may not create them.
+- **Read identifiers from config, not from string-building.** Tooling takes a bucket or database name
+  as input (env var, tfoutput, parameter) rather than inventing one at runtime.
+- The `aws` CLI is fine for **reading** — `describe-*`, `list-*`, `get-*` — and for break-glass
+  debugging. Anything that mutates goes through a plan and an apply.
+- Exception, deliberately narrow: throwaway experiments explicitly scoped as such, which must be torn
+  down in the same session and never referenced by committed code.
+
 ## 6. Conventions
 
 - **Packages:** `com.wellconverge.<context>.<layer>` e.g. `com.wellconverge.membership.domain`.

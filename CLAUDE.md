@@ -37,6 +37,20 @@ before the scenario exists.
 - `bootstrap`: composition root — `@Configuration` classes wire framework-free services into beans;
   Flyway owns the schema (`ddl-auto: validate`).
 
+## Infrastructure: Terraform only (non-negotiable)
+
+**Every AWS resource is created and changed through Terraform in `infra/`** — see
+[ADR-0005](docs/adr/0005-terraform-for-all-aws-resources.md). Never provision by console click,
+`aws` CLI `create-*`, boto3/SDK call, or any script that calls one.
+
+- Terraform **provisions** (buckets, Glue databases, IAM roles, clusters); application and tooling
+  code **consumes** — it may read and write *data*, never create the resource holding it.
+- Resource names/ARNs reach code as configuration (env var, Terraform output), never string-built
+  at runtime.
+- Reading is unrestricted: `aws ... describe-*/list-*/get-*` is fine any time. Mutating goes through
+  `terraform plan` → `terraform apply`.
+- Same reasoning as Flyway owning the schema: declared state is the source of truth, drift is a bug.
+
 ## Conventions
 
 - Packages: `com.wellconverge.<context>.<layer>` (e.g. `com.wellconverge.membership.domain`).
@@ -67,5 +81,6 @@ scenario passed — a failing scenario fails the build.
 
 - Don't weaken the domain's purity to make wiring easier — fix the wiring instead.
 - Don't add a feature without a failing scenario first.
+- Don't create AWS resources outside Terraform — add them to `infra/` and apply.
 - Commit/push only when the user asks.
 - Keep slices thin: prefer a working end-to-end sliver over a complete-but-inert layer.
