@@ -20,4 +20,11 @@ subprojects {
     tasks.withType<Test> {
         useJUnitPlatform()
     }
+
+    // Retain method parameter names in bytecode so Spring MVC can bind @PathVariable/@RequestParam
+    // by name. The Spring Boot plugin adds this to the bootstrap module; the java-library adapters
+    // module needs it explicitly.
+    tasks.withType<JavaCompile> {
+        options.compilerArgs.add("-parameters")
+    }
 }

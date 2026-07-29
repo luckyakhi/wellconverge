@@ -46,7 +46,7 @@ public class MemberController {
     }
 
     @PostMapping("/{id}/onboarding")
-    public MemberResponse onboard(@PathVariable String id,
+    public MemberResponse onboard(@PathVariable("id") String id,
                                   @Valid @RequestBody CompleteOnboardingRequest request) {
         MemberView view = completeOnboarding.completeOnboarding(
                 new CompleteOnboardingCommand(id, request.goals(), request.dateOfBirth()));
@@ -54,7 +54,7 @@ public class MemberController {
     }
 
     @GetMapping("/{id}")
-    public MemberResponse getById(@PathVariable String id) {
+    public MemberResponse getById(@PathVariable("id") String id) {
         return MemberResponse.from(getMember.getById(MemberId.of(id)));
     }
 }
