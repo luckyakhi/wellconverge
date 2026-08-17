@@ -29,7 +29,8 @@ frontend/.vite/
 .claude/settings.local.json
 .claude/*.tmp.*
 
-# Terraform (later)
+# Terraform
 **/.terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan

@@ -52,16 +52,27 @@ before the scenario exists.
 The backend is built/tested through Docker (there is no local `java`/`gradle`):
 
 ```bash
-# Run the executable specification + domain tests
+# Run everything (all modules: domain unit tests + BDD acceptance specs)
 docker run --rm -v "$PWD/backend":/workspace -w /workspace \
   gradle:8.10-jdk21 gradle --no-daemon test
+
+# Just one context/module, e.g. the membership BDD specs (fast, no DB)
+docker run --rm -v "$PWD/backend":/workspace -w /workspace \
+  gradle:8.10-jdk21 gradle --no-daemon :membership:membership-application:test
+
+# One scenario/class, e.g. a single feature file or JUnit test
+docker run --rm -v "$PWD/backend":/workspace -w /workspace \
+  gradle:8.10-jdk21 gradle --no-daemon :membership:membership-domain:test --tests MemberTest
 
 # Full local stack (Postgres + backend + React)
 docker compose -f deploy/docker-compose.yml up --build   # UI :5173, API :8080
 ```
 
-Frontend: `npm install` then `npm run dev` in `frontend/`. A green `gradle test` means every BDD
-scenario passed — a failing scenario fails the build.
+Frontend (`frontend/`): `npm install`, then `npm run dev` (Vite dev server), `npm run build` (`tsc -b`
+type-check + Vite build), `npm run preview`. No lint script is configured yet.
+
+A green `gradle test` means every BDD scenario passed — a failing scenario fails the build. REST
+endpoints are mounted under `/api/members` (see `MemberController`).
 
 ## Guardrails
 

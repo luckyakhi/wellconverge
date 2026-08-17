@@ -1,0 +1,58 @@
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch: {}
+
+# No stored AWS secrets: this workflow authenticates via OIDC, assuming
+# wellconverge-github-actions-deploy (see deploy/terraform/bootstrap/github_actions_role.tf).
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  # Bootstrap-stack output github_actions_deploy_role_arn; account is fixed to this project's AWS account.
+  DEPLOY_ROLE_ARN: arn:aws:iam::273505519511:role/wellconverge-github-actions-deploy
+  ECR_REPOSITORY: wellconverge-backend
+  ECS_CLUSTER: wellconverge-cluster
+  ECS_SERVICE: wellconverge-backend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker build \
+            -t "$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" \
+            -t "$REGISTRY/$ECR_REPOSITORY:latest" \
+            backend
+          docker push "$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+
+      - name: Redeploy ECS service
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --force-new-deployment \
+            --region "$AWS_REGION"
