@@ -37,6 +37,7 @@ wellconverge/
 │   │   └── membership-adapters/      # REST in, JPA out
 │   └── bootstrap/            # Spring Boot deployable that wires it all
 ├── frontend/                 # React + TS app
+├── agents/                   # A2A multi-agent demo (Concierge ↔ Membership Ops), see agents/README.md
 └── deploy/                   # docker-compose (k8s + terraform later)
 ```
 
@@ -71,8 +72,56 @@ locally you need:
 # Backend acceptance specs (the verifiable BDD specs) — fast, no DB
 cd backend && ./gradlew :membership:membership-application:test
 
-# Full stack locally
+# Full stack via Docker
 docker compose -f deploy/docker-compose.yml up --build
 # API:      http://localhost:8080/api/members
 # Frontend: http://localhost:5173
+```
+
+## Running the servers locally (no Docker)
+
+Requires Postgres running locally with a `wellconverge`/`wellconverge` role+database on `5432` (matches
+the defaults in `backend/bootstrap/src/main/resources/application.yml`), JDK 21 on `JAVA_HOME`, and
+Gradle 8.10 (this repo has no committed `gradlew` wrapper jar, only `gradle-wrapper.properties` — install
+Gradle separately, e.g. from [gradle.org](https://gradle.org/releases/)).
+
+### Starting Postgres locally
+
+Pick one:
+
+**Option A — just the `db` container from docker-compose** (simplest if Docker is already installed;
+gives you the exact same Postgres version/config the full stack uses, without starting the backend/frontend
+containers too):
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d db
+```
+
+**Option B — Postgres.app** (macOS, no Docker): install from [postgresapp.com](https://postgresapp.com),
+start it, then create the role + database once:
+
+```bash
+psql -U postgres -h localhost -c "CREATE ROLE wellconverge WITH LOGIN PASSWORD 'wellconverge' SUPERUSER;"
+createdb -U postgres -h localhost -O wellconverge wellconverge
+```
+
+**Option C — Homebrew Postgres:**
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+createuser -s wellconverge          # if it doesn't already exist
+psql -d postgres -c "ALTER ROLE wellconverge WITH PASSWORD 'wellconverge';"
+createdb -O wellconverge wellconverge
+```
+
+Flyway (run automatically by `bootRun`) owns the schema — no manual migrations needed once the empty
+`wellconverge` database exists.
+
+```bash
+# Backend — from backend/, runs on :8080
+cd backend && gradle :bootstrap:bootRun
+
+# Frontend — from frontend/, runs on :5173 (proxies /api to :8080)
+cd frontend && npm install && npm run dev
 ```

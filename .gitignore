@@ -9,6 +9,7 @@
 node_modules/
 frontend/dist/
 frontend/.vite/
+*.tsbuildinfo
 
 # IDE
 .idea/
@@ -34,3 +35,9 @@ frontend/.vite/
 *.tfstate
 *.tfstate.*
 *.tfplan
+
+# Python (agents/)
+__pycache__/
+*.pyc
+agents/.venv/
+.venv/
