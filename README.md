@@ -17,8 +17,8 @@ honest. We build **one thin end-to-end sub-feature at a time**.
 | Specs      | BDD with Gherkin + Cucumber-JVM (executable acceptance tests)    |
 | Frontend   | React + TypeScript (Vite)                                        |
 | Data       | PostgreSQL, Flyway migrations                                    |
-| Local run  | Docker Compose (now) → local Kubernetes (later)                  |
-| Cloud      | AWS Fargate/EKS via Terraform (later)                            |
+| Local run  | Mac dev: plain local processes (no Docker) · Windows: local Kubernetes |
+| Cloud      | AWS ECS Fargate via Terraform                                    |
 
 ## Repository layout
 
@@ -56,15 +56,22 @@ wellconverge/
 See [`docs/contexts/membership/spec.md`](docs/contexts/membership/spec.md) for the living spec and
 [`ITERATIONS.md`](ITERATIONS.md) for the roadmap.
 
+## Three ways to run this
+
+| Machine     | How                        | Where                |
+|-------------|----------------------------|-----------------------|
+| Mac (dev)   | Plain local processes, no Docker | Homebrew JDK 21 + Gradle 8.10 + `postgresql@16` |
+| Windows     | Local Kubernetes            | `deploy/k8s/` (kustomize) |
+| AWS         | ECS Fargate                 | `deploy/terraform/` — runbook: [`deploy/terraform/README.md`](deploy/terraform/README.md) |
+
 ## Prerequisites
 
-This environment has Node, Docker, kubectl, and Terraform, but **not a JDK**. To build/run the backend
-locally you need:
-
-- **JDK 21** (e.g. `sdk install java 21-tem` via [SDKMAN](https://sdkman.io), or Temurin 21)
-- Gradle is provided via the wrapper. If `backend/gradle/wrapper/gradle-wrapper.jar` is missing, run
-  `gradle wrapper --gradle-version 8.10` once from `backend/` to generate it (needs a system Gradle),
-  or let the Docker build fetch it.
+- **JDK 21** — on Mac: `brew install openjdk@21` (or Corretto/Temurin 21)
+- **Gradle 8.10** — on Mac: `brew install gradle`. Gradle is also provided via the wrapper; if
+  `backend/gradle/wrapper/gradle-wrapper.jar` is missing, run `gradle wrapper --gradle-version 8.10`
+  once from `backend/` to generate it (needs a system Gradle), or let the Docker build fetch it.
+- **PostgreSQL 16** — on Mac: `brew install postgresql@16` (see below), or Docker/Postgres.app
+- Node (for the frontend), and Docker/kubectl/Terraform only if you're doing container/k8s/cloud work.
 
 ## Quick start
 
@@ -89,23 +96,7 @@ Gradle separately, e.g. from [gradle.org](https://gradle.org/releases/)).
 
 Pick one:
 
-**Option A — just the `db` container from docker-compose** (simplest if Docker is already installed;
-gives you the exact same Postgres version/config the full stack uses, without starting the backend/frontend
-containers too):
-
-```bash
-docker compose -f deploy/docker-compose.yml up -d db
-```
-
-**Option B — Postgres.app** (macOS, no Docker): install from [postgresapp.com](https://postgresapp.com),
-start it, then create the role + database once:
-
-```bash
-psql -U postgres -h localhost -c "CREATE ROLE wellconverge WITH LOGIN PASSWORD 'wellconverge' SUPERUSER;"
-createdb -U postgres -h localhost -O wellconverge wellconverge
-```
-
-**Option C — Homebrew Postgres:**
+**Option A — Homebrew Postgres** (recommended for Mac dev — no Docker):
 
 ```bash
 brew install postgresql@16
@@ -113,6 +104,21 @@ brew services start postgresql@16
 createuser -s wellconverge          # if it doesn't already exist
 psql -d postgres -c "ALTER ROLE wellconverge WITH PASSWORD 'wellconverge';"
 createdb -O wellconverge wellconverge
+```
+
+**Option B — just the `db` container from docker-compose** (if Docker is installed; gives you the exact
+same Postgres version/config the full stack uses, without starting the backend/frontend containers too):
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d db
+```
+
+**Option C — Postgres.app** (macOS, no Docker): install from [postgresapp.com](https://postgresapp.com),
+start it, then create the role + database once:
+
+```bash
+psql -U postgres -h localhost -c "CREATE ROLE wellconverge WITH LOGIN PASSWORD 'wellconverge' SUPERUSER;"
+createdb -U postgres -h localhost -O wellconverge wellconverge
 ```
 
 Flyway (run automatically by `bootRun`) owns the schema — no manual migrations needed once the empty
@@ -125,3 +131,16 @@ cd backend && gradle :bootstrap:bootRun
 # Frontend — from frontend/, runs on :5173 (proxies /api to :8080)
 cd frontend && npm install && npm run dev
 ```
+
+## Running on Windows (local Kubernetes)
+
+```bash
+kubectl apply -k deploy/k8s/
+```
+
+Manifests: `namespace.yaml`, `postgres-secret.yaml` + `postgres.yaml`, `backend.yaml`, `frontend.yaml` —
+see `deploy/k8s/kustomization.yaml`.
+
+## Running on AWS (ECS Fargate)
+
+Provisioned via Terraform — ECS Fargate, RDS, ALB, GitHub OIDC for CI deploys. See `deploy/terraform/`.

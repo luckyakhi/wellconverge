@@ -47,26 +47,66 @@ before the scenario exists.
 - New bounded context → copy the `membership` module shape and add it to `backend/settings.gradle.kts`.
 - Record non-obvious decisions as a new numbered ADR in `docs/adr/`.
 
-## Build & run (IMPORTANT: no JDK on this machine)
+## Build & run — three environments
 
-The backend is built/tested through Docker (there is no local `java`/`gradle`):
+Same codebase, three ways to run it depending on machine:
+
+| Machine       | How                                                        | Notes |
+|---------------|------------------------------------------------------------|-------|
+| **Mac (dev)** | Plain local Spring Boot + Vite, **no Docker**               | JDK 21 (Corretto) + Gradle 8.10 installed via Homebrew; Postgres via Homebrew `postgresql@16` service |
+| **Windows**   | Local Kubernetes                                            | `deploy/k8s/` kustomize manifests (namespace, postgres, backend, frontend) |
+| **AWS**       | ECS Fargate                                                 | `deploy/terraform/` (ADR + `ITERATIONS.md` iteration 2) |
+
+### Mac — local dev (no Docker)
+
+Postgres runs as a Homebrew service; backend and frontend run as plain local processes.
 
 ```bash
-# Run everything (all modules: domain unit tests + BDD acceptance specs)
-docker run --rm -v "$PWD/backend":/workspace -w /workspace \
-  gradle:8.10-jdk21 gradle --no-daemon test
+# One-time: role + database (Homebrew postgresql@16)
+brew services start postgresql@16
+createuser -s wellconverge          # if it doesn't already exist
+psql -d postgres -c "ALTER ROLE wellconverge WITH PASSWORD 'wellconverge';"
+createdb -O wellconverge wellconverge
+
+# Backend (from backend/, runs on :8080; Flyway applies migrations on boot)
+cd backend && gradle :bootstrap:bootRun
+
+# Frontend (from frontend/, runs on :5173, proxies /api to :8080)
+cd frontend && npm install && npm run dev
+
+# Tests — domain unit tests + BDD acceptance specs, all in-process
+cd backend && gradle test
 
 # Just one context/module, e.g. the membership BDD specs (fast, no DB)
-docker run --rm -v "$PWD/backend":/workspace -w /workspace \
-  gradle:8.10-jdk21 gradle --no-daemon :membership:membership-application:test
+cd backend && gradle :membership:membership-application:test
 
 # One scenario/class, e.g. a single feature file or JUnit test
-docker run --rm -v "$PWD/backend":/workspace -w /workspace \
-  gradle:8.10-jdk21 gradle --no-daemon :membership:membership-domain:test --tests MemberTest
+cd backend && gradle :membership:membership-domain:test --tests MemberTest
+```
 
-# Full local stack (Postgres + backend + React)
+If `java`/`gradle` are ever unavailable on this Mac, fall back to Docker:
+
+```bash
+docker run --rm -v "$PWD/backend":/workspace -w /workspace \
+  gradle:8.10-jdk21 gradle --no-daemon test
 docker compose -f deploy/docker-compose.yml up --build   # UI :5173, API :8080
 ```
+
+### Windows — local Kubernetes
+
+```bash
+kubectl apply -k deploy/k8s/
+```
+
+Builds the same images used by docker-compose; see `deploy/k8s/kustomization.yaml` for the manifest set
+(namespace, postgres + secret, backend, frontend).
+
+### AWS — ECS Fargate
+
+Provisioned via Terraform (ECS Fargate, RDS, ALB, OIDC) — see `deploy/terraform/` and ADRs for the
+deployment shape.
+
+---
 
 Frontend (`frontend/`): `npm install`, then `npm run dev` (Vite dev server), `npm run build` (`tsc -b`
 type-check + Vite build), `npm run preview`. No lint script is configured yet.

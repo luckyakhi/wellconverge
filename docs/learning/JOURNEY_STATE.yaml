@@ -1,0 +1,18 @@
+journey_state:
+  version: 1
+  current_day: 0
+  phase: ""
+  last_session_date: ""
+  shipped:            # artifacts now in the repo, newest first, max 8
+    - day: 0
+      artifact: ""
+      path: ""
+  mastered:           # concepts not to re-explain
+    - ""
+  open_threads:       # deliberately deferred, with the day they're due
+    - topic: ""
+      due_day: 0
+  rust_flags:         # things he fumbled; schedule a callback
+    - ""
+  decisions:          # ADRs raised during the journey
+    - ""
