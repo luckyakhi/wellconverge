@@ -32,3 +32,15 @@ variable "name_prefix" {
   type        = string
   default     = "wellconverge"
 }
+
+variable "state_bucket_name" {
+  description = "S3 bucket holding remote Terraform state for the main stack. Must be globally unique."
+  type        = string
+  default     = "wellconverge-tfstate-273505519511"
+}
+
+variable "state_lock_table_name" {
+  description = "DynamoDB table used for Terraform state locking."
+  type        = string
+  default     = "wellconverge-tfstate-lock"
+}

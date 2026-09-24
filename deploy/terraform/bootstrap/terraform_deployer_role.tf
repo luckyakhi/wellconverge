@@ -51,6 +51,63 @@ data "aws_iam_policy_document" "terraform_deployer_permissions" {
     resources = ["*"]
   }
 
+  # Remote state backend. Scoped to the one bucket and the one lock table by ARN; using "*" on the
+  # action side (rather than enumerating) because Terraform's aws_s3_bucket refreshes a long tail of
+  # sub-resource reads (versioning, encryption, policy, ownership, lifecycle, CORS, ...) and missing
+  # any one of them fails the plan. Same reasoning as elasticloadbalancing:* below.
+  statement {
+    sid     = "TerraformStateBucket"
+    effect  = "Allow"
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${var.state_bucket_name}",
+      "arn:aws:s3:::${var.state_bucket_name}/*",
+    ]
+  }
+
+  # ListAllMyBuckets is account-level and cannot be scoped to a single bucket.
+  statement {
+    sid       = "ListBuckets"
+    effect    = "Allow"
+    actions   = ["s3:ListAllMyBuckets"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "TerraformStateLockTable"
+    effect    = "Allow"
+    actions   = ["dynamodb:*"]
+    resources = ["arn:aws:dynamodb:*:*:table/${var.state_lock_table_name}"]
+  }
+
+  # Enabling manage_master_user_password makes RDS create a Secrets Manager secret on our behalf,
+  # encrypted with the AWS-managed aws/secretsmanager key. Without these, ModifyDBInstance fails
+  # with `KMSKeyNotAccessibleFault: The specified KMS key [null] ...`.
+  #
+  # Scoped by kms:ViaService rather than by key ARN: the AWS-managed key's id is generated per
+  # account and region, so it can't be written into a policy ahead of time.
+  statement {
+    sid    = "KmsForRdsManagedSecret"
+    effect = "Allow"
+    actions = [
+      "kms:DescribeKey",
+      "kms:CreateGrant",
+      "kms:GenerateDataKey",
+      "kms:Decrypt",
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values = [
+        "secretsmanager.${var.aws_region}.amazonaws.com",
+        "rds.${var.aws_region}.amazonaws.com",
+      ]
+    }
+  }
+
+
   statement {
     sid    = "Ecr"
     effect = "Allow"
@@ -121,6 +178,8 @@ data "aws_iam_policy_document" "terraform_deployer_permissions" {
     ]
     resources = [
       "arn:aws:secretsmanager:*:*:secret:${var.name_prefix}/*",
+      # RDS names the secret it manages `rds!db-<resource-id>`, outside the wellconverge/* prefix.
+      "arn:aws:secretsmanager:*:*:secret:rds!db-*",
       "arn:aws:logs:*:*:log-group:/ecs/${var.name_prefix}-*",
     ]
   }

@@ -45,7 +45,10 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  count          = length(aws_subnet.public)
+  # Counted off the variable, not off aws_subnet.public: a count derived from another resource
+  # cannot be resolved when that resource isn't in state yet, which breaks `terraform import`
+  # (and any plan from a clean state). Both expressions yield the same number.
+  count          = length(var.public_subnet_cidrs)
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }

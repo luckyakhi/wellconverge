@@ -45,7 +45,7 @@ data "aws_iam_policy_document" "ecs_task_execution_secrets" {
   statement {
     effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.db_credentials.arn]
+    resources = [aws_db_instance.main.master_user_secret[0].secret_arn]
   }
 }
 
@@ -86,8 +86,8 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "DB_URL", value = "jdbc:postgresql://${aws_db_instance.main.address}:5432/${var.db_name}" }
       ]
       secrets = [
-        { name = "DB_USERNAME", valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::" },
-        { name = "DB_PASSWORD", valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::" }
+        { name = "DB_USERNAME", valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:username::" },
+        { name = "DB_PASSWORD", valueFrom = "${aws_db_instance.main.master_user_secret[0].secret_arn}:password::" }
       ]
       logConfiguration = {
         logDriver = "awslogs"
