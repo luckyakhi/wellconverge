@@ -139,6 +139,8 @@ data "aws_iam_policy_document" "terraform_deployer_permissions" {
       "rds:CreateDBInstance", "rds:DeleteDBInstance", "rds:ModifyDBInstance",
       "rds:CreateDBSubnetGroup", "rds:DeleteDBSubnetGroup",
       "rds:AddTagsToResource", "rds:ListTagsForResource",
+      # aws_rds_instance_state: pause.sh / resume.sh park the database (ADR-0007).
+      "rds:StopDBInstance", "rds:StartDBInstance",
     ]
     resources = [
       "arn:aws:rds:*:*:db:${var.name_prefix}-*",

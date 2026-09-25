@@ -328,12 +328,26 @@ Roughly **$35–40/month** if left running continuously:
 
 No NAT Gateway, deliberately — that alone would add ~$32–35.
 
-To pause spend without destroying anything, scale the service to zero (the ALB and RDS still bill):
+### Pausing the environment
+
+To stop the hourly charges without losing data, park the stack (ADR-0007):
 
 ```bash
-aws ecs update-service --cluster wellconverge-cluster \
-  --service wellconverge-backend --desired-count 0 --region ap-south-1
+deploy/terraform/main/pause.sh    # ECS -> 0 tasks, ALB destroyed, RDS stopped
+deploy/terraform/main/resume.sh   # RDS started, ALB recreated, ECS back to desired_count
 ```
+
+Both show the plan and ask before applying. While paused the bill drops to roughly **$2–3/month**
+(20 GB of RDS storage, the RDS-managed secret, ECR/CloudWatch storage).
+
+Things to know:
+- **A plain `terraform apply` resumes.** `paused` defaults to `false`, so any other apply puts the
+  ALB and RDS back. Pass `-var paused=true` (or `export TF_VAR_paused=true`) while parked.
+- **AWS restarts a stopped RDS instance after 7 days.** Re-run `pause.sh` weekly for a long pause,
+  or `terraform destroy` instead.
+- **The ALB's DNS name changes on resume** — the ALB is recreated, not restarted. Read the new one
+  from `terraform output alb_dns_name`.
+- Stopping and starting RDS takes 5–10 minutes each way; the apply waits for it.
 
 ## Teardown
 

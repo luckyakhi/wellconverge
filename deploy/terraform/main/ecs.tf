@@ -107,7 +107,7 @@ resource "aws_ecs_service" "backend" {
   name            = "${var.name_prefix}-backend"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.backend.arn
-  desired_count   = var.desired_count
+  desired_count   = var.paused ? 0 : var.desired_count
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -116,10 +116,14 @@ resource "aws_ecs_service" "backend" {
     assign_public_ip = true
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.backend.arn
-    container_name   = "backend"
-    container_port   = var.container_port
+  # Detached while paused, since the target group is destroyed along with the ALB.
+  dynamic "load_balancer" {
+    for_each = aws_lb_target_group.backend
+    content {
+      target_group_arn = load_balancer.value.arn
+      container_name   = "backend"
+      container_port   = var.container_port
+    }
   }
 
   depends_on = [aws_lb_listener.http]

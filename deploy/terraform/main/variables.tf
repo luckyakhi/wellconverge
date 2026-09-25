@@ -80,3 +80,13 @@ variable "log_retention_days" {
   type    = number
   default = 14
 }
+
+variable "paused" {
+  description = <<-EOT
+    Park the environment to stop hourly charges: ECS scales to 0, the ALB is destroyed, and RDS is
+    stopped (data kept). Set via pause.sh / resume.sh. A plain `terraform apply` resumes, because
+    the default is false. See ADR-0007.
+  EOT
+  type        = bool
+  default     = false
+}

@@ -35,3 +35,10 @@ resource "aws_db_instance" "main" {
 
   tags = { Project = var.name_prefix }
 }
+
+# Stopping keeps storage and data but ends compute charges. AWS restarts a stopped instance
+# automatically after 7 days, so a long pause needs pause.sh re-run weekly (ADR-0007).
+resource "aws_rds_instance_state" "main" {
+  identifier = aws_db_instance.main.identifier
+  state      = var.paused ? "stopped" : "available"
+}

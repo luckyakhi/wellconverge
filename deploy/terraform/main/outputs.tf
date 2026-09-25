@@ -1,6 +1,6 @@
 output "alb_dns_name" {
-  description = "Public URL for the backend: http://<this>/actuator/health"
-  value       = aws_lb.main.dns_name
+  description = "Public URL for the backend: http://<this>/actuator/health. Null while paused."
+  value       = one(aws_lb.main[*].dns_name)
 }
 
 output "ecr_backend_repository_url" {
@@ -25,4 +25,8 @@ output "db_secret_arn" {
   # password, and an output is evaluated on every plan -- including the targeted phase-1 apply that
   # performs that switch. [0] would hard-error there.
   value = one(aws_db_instance.main.master_user_secret[*].secret_arn)
+}
+
+output "paused" {
+  value = var.paused
 }
